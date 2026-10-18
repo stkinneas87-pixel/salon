@@ -98,6 +98,11 @@ export const siteSettingsSchema = z.object({
     policyNote: z.string(),
     confirmationNote: z.string(),
   }),
+  payments: z.object({
+    enabled: z.boolean(),
+    depositPercent: z.number().int().min(1).max(100),
+    depositNote: z.string(),
+  }),
   footer: z.object({
     tagline: z.string(),
     copyright: z.string(),
@@ -295,12 +300,30 @@ export const privacyContentSchema = z.object({
 
 export type PrivacyContent = z.infer<typeof privacyContentSchema>;
 
+export const termsContentSchema = z.object({
+  title: z.string().min(1),
+  version: z.string().min(1),
+  effectiveDate: z.string().min(1),
+  sections: z
+    .array(
+      z.object({
+        title: z.string().min(1),
+        paragraphs: z.array(z.string().min(1)).min(1),
+      }),
+    )
+    .min(1),
+  contactNote: z.string().min(1),
+});
+
+export type TermsContent = z.infer<typeof termsContentSchema>;
+
 export type PageContentMap = {
   home: HomeContent;
   about: AboutContent;
   services: ServicesContent;
   contact: ContactContent;
   privacy: PrivacyContent;
+  terms: TermsContent;
 };
 
 export type AnyPageContent = PageContentMap[PageSlug];
@@ -311,6 +334,7 @@ export const pageContentSchemas = {
   services: servicesContentSchema,
   contact: contactContentSchema,
   privacy: privacyContentSchema,
+  terms: termsContentSchema,
 } as const;
 
 export function parsePageContent<S extends PageSlug>(
@@ -349,6 +373,7 @@ export const bookingRequestSchema = z.object({
   phone: z.string().trim().min(6).max(40),
   notes: z.string().trim().max(1000),
   consent: z.literal(true),
+  termsAccepted: z.literal(true),
   website: z.string().max(0),
   startedAt: z.number().int().nonnegative(),
 });

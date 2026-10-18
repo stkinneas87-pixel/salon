@@ -9,6 +9,7 @@ import {
   text,
   time,
   timestamp,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 
@@ -20,10 +21,20 @@ import type {
 } from "@/lib/content/schemas";
 
 export const bookingStatusEnum = pgEnum("booking_status", [
+  "pending_payment",
   "confirmed",
   "cancelled",
   "completed",
   "no_show",
+]);
+
+export const paymentStatusEnum = pgEnum("payment_status", [
+  "not_required",
+  "pending",
+  "paid",
+  "refunded",
+  "failed",
+  "expired",
 ]);
 
 export const emailStatusEnum = pgEnum("email_status", [
@@ -99,6 +110,19 @@ export const bookings = pgTable(
     notes: text("notes").notNull().default(""),
     internalNotes: text("internal_notes").notNull().default(""),
     consentAt: timestamp("consent_at", { withTimezone: true }).notNull(),
+    termsAcceptedAt: timestamp("terms_accepted_at", { withTimezone: true }),
+    termsVersion: text("terms_version"),
+    depositCents: integer("deposit_cents").notNull().default(0),
+    paymentStatus: paymentStatusEnum("payment_status")
+      .notNull()
+      .default("not_required"),
+    stripeSessionId: text("stripe_session_id"),
+    stripePaymentIntentId: text("stripe_payment_intent_id"),
+    paymentExpiresAt: timestamp("payment_expires_at", { withTimezone: true }),
+    paidAt: timestamp("paid_at", { withTimezone: true }),
+    refundedAt: timestamp("refunded_at", { withTimezone: true }),
+    refundId: text("refund_id"),
+    refundedBy: text("refunded_by"),
     status: bookingStatusEnum("status").notNull().default("confirmed"),
     ownerEmailStatus: emailStatusEnum("owner_email_status")
       .notNull()
@@ -118,8 +142,22 @@ export const bookings = pgTable(
     index("bookings_date_status_idx").on(table.date, table.status),
     index("bookings_created_at_idx").on(table.createdAt),
     index("bookings_ip_created_idx").on(table.ipHash, table.createdAt),
+    index("bookings_payment_status_idx").on(
+      table.paymentStatus,
+      table.paymentExpiresAt,
+    ),
+    uniqueIndex("bookings_stripe_session_idx").on(table.stripeSessionId),
+    index("bookings_stripe_payment_intent_idx").on(table.stripePaymentIntentId),
   ],
 );
+
+export const stripeEvents = pgTable("stripe_events", {
+  id: text("id").primaryKey(),
+  type: text("type").notNull(),
+  processedAt: timestamp("processed_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
 
 export const closures = pgTable(
   "closures",

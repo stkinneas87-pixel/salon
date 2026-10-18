@@ -266,12 +266,38 @@ export const privacyFormSections: FormSection[] = [
   },
 ];
 
+export const termsFormSections: FormSection[] = [
+  {
+    title: "Terms",
+    description:
+      "Increment the version whenever any policy wording changes. The version shown at checkout is stored with each booking.",
+    fields: [
+      { type: "text", name: "title", label: "Title" },
+      { type: "text", name: "version", label: "Version", help: "Increment this whenever a policy term changes. It is stored with every booking." },
+      { type: "text", name: "effectiveDate", label: "Effective date" },
+      {
+        type: "objectList",
+        name: "sections",
+        label: "Sections",
+        itemLabel: "Section",
+        min: 1,
+        fields: [
+          { type: "text", name: "title", label: "Heading" },
+          { type: "stringList", name: "paragraphs", label: "Paragraphs", itemLabel: "paragraph" },
+        ],
+      },
+      { type: "textarea", name: "contactNote", label: "Contact note", rows: 3 },
+    ],
+  },
+];
+
 export const pageFormSections = {
   home: homeFormSections,
   about: aboutFormSections,
   services: servicesFormSections,
   contact: contactFormSections,
   privacy: privacyFormSections,
+  terms: termsFormSections,
 } as const;
 
 const dayFields = (name: string, label: string): FieldDef => ({
@@ -342,6 +368,33 @@ export const settingsFormSections: FormSection[] = [
       { type: "text", name: "booking.notifyEmail", label: "Booking notification email" },
       { type: "textarea", name: "booking.policyNote", label: "Cancellation / change note", rows: 3 },
       { type: "textarea", name: "booking.confirmationNote", label: "Confirmation note", rows: 3 },
+    ],
+  },
+  {
+    title: "Payments",
+    description:
+      "Stripe test/live mode is controlled by STRIPE_SECRET_KEY. Test mode should only be used on preview or local environments.",
+    fields: [
+      {
+        type: "boolean",
+        name: "payments.enabled",
+        label: "Require a deposit with Stripe",
+        help: "When enabled, online booking is blocked if Stripe is not configured.",
+      },
+      {
+        type: "number",
+        name: "payments.depositPercent",
+        label: "Deposit percentage",
+        min: 1,
+        max: 100,
+        help: "Percentage of the listed service price, rounded to the nearest dollar.",
+      },
+      {
+        type: "textarea",
+        name: "payments.depositNote",
+        label: "Deposit note",
+        rows: 3,
+      },
     ],
   },
   {

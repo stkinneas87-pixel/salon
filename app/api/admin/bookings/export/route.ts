@@ -28,6 +28,10 @@ export async function GET(request: Request) {
     "Duration (min)",
     "Price (AUD)",
     "Price type",
+    "Payment status",
+    "Deposit (AUD)",
+    "Balance (AUD)",
+    "Terms version",
     "Customer",
     "Phone",
     "Email",
@@ -47,6 +51,14 @@ export async function GET(request: Request) {
       booking.durationMinutes,
       (booking.priceCents / 100).toFixed(2),
       booking.priceType,
+      booking.paymentStatus,
+      (booking.depositCents / 100).toFixed(2),
+      (
+        (booking.paymentStatus === "paid"
+          ? Math.max(0, booking.priceCents - booking.depositCents)
+          : booking.priceCents) / 100
+      ).toFixed(2),
+      booking.termsVersion,
       booking.customerName,
       booking.customerPhone,
       booking.customerEmail,

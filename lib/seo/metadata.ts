@@ -40,6 +40,7 @@ export const pagePaths: Record<PageSlug, string> = {
   services: "/services",
   contact: "/contact",
   privacy: "/privacy",
+  terms: "/terms",
 };
 
 export function buildPageMetadata(

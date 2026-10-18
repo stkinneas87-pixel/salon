@@ -16,6 +16,7 @@ export const pageSlugs = [
   "services",
   "contact",
   "privacy",
+  "terms",
 ] as const;
 
 export type PageSlug = (typeof pageSlugs)[number];

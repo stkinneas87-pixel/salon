@@ -153,6 +153,7 @@ export async function getSitemapPages() {
     services: new Date(),
     contact: new Date(),
     privacy: new Date(),
+    terms: new Date(),
   };
 
   const db = getDb();

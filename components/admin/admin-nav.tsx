@@ -18,6 +18,7 @@ const pages = [
   { href: "/admin/content/services", label: "Services page" },
   { href: "/admin/content/contact", label: "Contact" },
   { href: "/admin/content/privacy", label: "Privacy" },
+  { href: "/admin/content/terms", label: "Terms" },
 ];
 
 export function AdminNav({

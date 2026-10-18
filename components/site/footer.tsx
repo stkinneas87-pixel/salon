@@ -44,6 +44,9 @@ export function Footer({ settings }: { settings: SiteSettings }) {
             <Link href="/privacy" className="text-sm text-white/65 hover:text-white">
               Privacy
             </Link>
+            <Link href="/terms" className="text-sm text-white/65 hover:text-white">
+              Terms
+            </Link>
           </nav>
 
           <div className="space-y-5 text-sm text-white/65">

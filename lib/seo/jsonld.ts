@@ -130,4 +130,8 @@ export const staticBreadcrumbs = {
     { name: "Home", path: pagePaths.home },
     { name: "Privacy", path: pagePaths.privacy },
   ],
+  terms: [
+    { name: "Home", path: pagePaths.home },
+    { name: "Terms", path: pagePaths.terms },
+  ],
 };

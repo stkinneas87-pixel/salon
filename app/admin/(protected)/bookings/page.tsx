@@ -3,7 +3,7 @@ import { connection } from "next/server";
 import { Suspense } from "react";
 
 import { isValidDateString } from "@/lib/booking/slots";
-import { getBookings } from "@/lib/db/queries";
+import { expireStalePendingBookings, getBookings } from "@/lib/db/queries";
 import { formatDateShort, formatPrice, formatTime } from "@/lib/utils";
 
 type Search = {
@@ -12,10 +12,16 @@ type Search = {
   page?: string;
 };
 
-const statuses = ["confirmed", "cancelled", "completed", "no_show"] as const;
+const statuses = [
+  "pending_payment",
+  "confirmed",
+  "cancelled",
+  "completed",
+  "no_show",
+] as const;
 
 function statusLabel(status: string) {
-  return status.replace("_", " ");
+  return status.replaceAll("_", " ");
 }
 
 function queryString(values: Record<string, string | undefined>) {
@@ -51,6 +57,7 @@ async function Loader({ searchParams }: { searchParams: Promise<Search> }) {
     : undefined;
   const page = Math.max(1, Number(params.page) || 1);
 
+  await expireStalePendingBookings();
   const data = await getBookings({ status, date, page });
 
   const filters = { status, date };
@@ -101,10 +108,10 @@ async function Loader({ searchParams }: { searchParams: Promise<Search> }) {
       </form>
 
       <div className="mt-5 overflow-x-auto border border-line bg-white">
-        <table className="w-full min-w-[820px] text-left text-sm">
+        <table className="w-full min-w-[920px] text-left text-sm">
           <thead>
             <tr className="border-b border-line">
-              {["Date", "Time", "Client", "Service", "Price", "Status", "Email", ""].map(
+              {["Date", "Time", "Client", "Service", "Price", "Payment", "Status", "Email", ""].map(
                 (heading) => (
                   <th key={heading} className="label px-4 py-3 text-muted">
                     {heading}
@@ -134,6 +141,16 @@ async function Loader({ searchParams }: { searchParams: Promise<Search> }) {
                 <td className="px-4 py-4">{booking.serviceName}</td>
                 <td className="px-4 py-4 whitespace-nowrap">
                   {formatPrice(booking.priceCents, booking.priceType)}
+                </td>
+                <td className="px-4 py-4 whitespace-nowrap">
+                  <span className="label text-muted">
+                    {statusLabel(booking.paymentStatus)}
+                  </span>
+                  {booking.depositCents > 0 ? (
+                    <p className="mt-1 text-xs text-muted">
+                      {formatPrice(booking.depositCents, "fixed")}
+                    </p>
+                  ) : null}
                 </td>
                 <td className="px-4 py-4">
                   <span className="label text-muted">{statusLabel(booking.status)}</span>

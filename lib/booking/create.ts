@@ -1,7 +1,7 @@
 import "server-only";
 
 import { randomInt } from "node:crypto";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, gt, or, sql } from "drizzle-orm";
 
 import type { BookingRequest } from "@/lib/content/schemas";
 import { requireDb } from "@/lib/db/client";
@@ -12,6 +12,11 @@ import {
   type BookingRow,
 } from "@/lib/db/schema";
 import { getSettingsForAdmin } from "@/lib/db/queries";
+import {
+  calculateDepositCents,
+  DEPOSIT_HOLD_MINUTES,
+} from "@/lib/payments/deposit";
+import { isStripeConfigured } from "@/lib/payments/stripe";
 
 import { validateRequestedSlot } from "./slots";
 
@@ -40,6 +45,7 @@ export function createReference() {
 export async function createBooking(
   input: BookingRequest,
   ipHash: string | null,
+  termsVersion: string,
 ): Promise<BookingRow> {
   const db = requireDb();
   const settings = await getSettingsForAdmin();
@@ -49,6 +55,22 @@ export async function createBooking(
       "Online booking is currently paused. Please call the salon.",
       503,
       "BOOKING_DISABLED",
+    );
+  }
+
+  if (!termsVersion.trim()) {
+    throw new BookingError(
+      "The booking terms are not available. Please call the salon.",
+      503,
+      "TERMS_UNAVAILABLE",
+    );
+  }
+
+  if (settings.payments.enabled && !isStripeConfigured()) {
+    throw new BookingError(
+      "Online payment is not configured. Please call the salon.",
+      503,
+      "PAYMENTS_UNAVAILABLE",
     );
   }
 
@@ -67,6 +89,21 @@ export async function createBooking(
     );
   }
 
+  const depositCents = settings.payments.enabled
+    ? calculateDepositCents(
+        selected.priceCents,
+        settings.payments.depositPercent,
+      )
+    : 0;
+
+  if (settings.payments.enabled && depositCents < 50) {
+    throw new BookingError(
+      "This service cannot be booked with a deposit online. Please call the salon.",
+      400,
+      "DEPOSIT_UNAVAILABLE",
+    );
+  }
+
   return db.transaction(async (tx) => {
     await tx.execute(
       sql`select pg_advisory_xact_lock(hashtext(${input.date}))`,
@@ -81,7 +118,17 @@ export async function createBooking(
         })
         .from(bookings)
         .where(
-          and(eq(bookings.date, input.date), eq(bookings.status, "confirmed")),
+          and(
+            eq(bookings.date, input.date),
+            or(
+              eq(bookings.status, "confirmed"),
+              and(
+                eq(bookings.status, "pending_payment"),
+                eq(bookings.paymentStatus, "pending"),
+                gt(bookings.paymentExpiresAt, sql`now()`),
+              ),
+            ),
+          ),
         ),
       tx.select().from(closures).where(eq(closures.date, input.date)),
     ]);
@@ -123,7 +170,14 @@ export async function createBooking(
         customerPhone: input.phone,
         notes: input.notes,
         consentAt: new Date(),
-        status: "confirmed",
+        termsAcceptedAt: new Date(),
+        termsVersion,
+        depositCents,
+        paymentStatus: settings.payments.enabled ? "pending" : "not_required",
+        paymentExpiresAt: settings.payments.enabled
+          ? new Date(Date.now() + DEPOSIT_HOLD_MINUTES * 60 * 1000)
+          : null,
+        status: settings.payments.enabled ? "pending_payment" : "confirmed",
         ipHash,
       })
       .returning();

@@ -7,6 +7,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { PublicService } from "@/lib/content/queries";
 import type { SiteSettings } from "@/lib/content/schemas";
 import {
+  calculateBalanceCents,
+  calculateDepositCents,
+} from "@/lib/payments/deposit";
+import {
   addDays,
   cn,
   formatClosedDays,
@@ -90,6 +94,14 @@ type WizardSettings = {
     SiteSettings["booking"],
     "maxAdvanceDays" | "policyNote" | "confirmationNote"
   >;
+  payments: Pick<
+    SiteSettings["payments"],
+    "enabled" | "depositPercent" | "depositNote"
+  >;
+  terms: {
+    version: string;
+    href: string;
+  };
   contact: Pick<
     SiteSettings["contact"],
     "phoneDisplay" | "phoneE164" | "addressFull" | "whatsappUrl"
@@ -105,6 +117,7 @@ export function BookingWizard({
 }) {
   const searchParams = useSearchParams();
   const querySlug = searchParams.get("service");
+  const paymentCancelled = searchParams.get("payment") === "cancelled";
   const initialService = useMemo(
     () => services.find((service) => service.slug === querySlug) ?? null,
     [services, querySlug],
@@ -132,6 +145,7 @@ export function BookingWizard({
     phone: "",
     notes: "",
     consent: false,
+    termsAccepted: false,
     website: "",
   });
   const [submitting, setSubmitting] = useState(false);
@@ -260,6 +274,7 @@ export function BookingWizard({
           phone: details.phone,
           notes: details.notes,
           consent: details.consent,
+          termsAccepted: details.termsAccepted,
           website: details.website,
           startedAt: startedAtRef.current,
         }),
@@ -267,9 +282,20 @@ export function BookingWizard({
 
       const data = (await response.json()) as {
         ok?: boolean;
+        requiresPayment?: boolean;
+        checkoutUrl?: string;
         booking?: Confirmation;
         emailStatuses?: { owner: string; customer: string };
       } & ApiError;
+
+      if (response.ok && data.requiresPayment) {
+        if (!data.checkoutUrl) {
+          setError("Secure payment could not be started. Please call the salon.");
+          return;
+        }
+        window.location.assign(data.checkoutUrl);
+        return;
+      }
 
       if (!response.ok || !data.booking) {
         if (response.status === 409) {
@@ -309,6 +335,7 @@ export function BookingWizard({
       phone: "",
       notes: "",
       consent: false,
+      termsAccepted: false,
       website: "",
     });
     startedAtRef.current = Date.now();
@@ -441,9 +468,26 @@ export function BookingWizard({
   const selectedPrice = service
     ? formatPrice(service.priceCents, service.priceType)
     : "—";
+  const depositCents =
+    service && settings.payments.enabled
+      ? calculateDepositCents(service.priceCents, settings.payments.depositPercent)
+      : 0;
+  const balanceCents =
+    service && settings.payments.enabled
+      ? calculateBalanceCents(service.priceCents, depositCents)
+      : service?.priceCents ?? 0;
 
   return (
     <div className="container-editorial py-12 lg:py-20">
+      {paymentCancelled ? (
+        <div
+          role="status"
+          className="mb-8 border border-ink/25 bg-mist px-4 py-3 text-sm leading-relaxed"
+        >
+          Payment was not completed. Your time is held temporarily for up to 30
+          minutes. You can try again, or call the salon for help.
+        </div>
+      ) : null}
       <div className="grid gap-10 lg:grid-cols-[1fr_23rem] lg:gap-16">
         <div>
           <ol className="mb-10 flex flex-wrap gap-6 border-b border-line pb-5">
@@ -808,21 +852,30 @@ export function BookingWizard({
                   <input
                     type="checkbox"
                     required
-                    checked={details.consent}
+                    checked={details.consent && details.termsAccepted}
                     onChange={(event) =>
                       setDetails((current) => ({
                         ...current,
                         consent: event.target.checked,
+                        termsAccepted: event.target.checked,
                       }))
                     }
                     className="mt-1 h-4 w-4 accent-black"
                   />
                   <span>
                     I agree to the{" "}
-                    <Link href="/privacy" className="link-underline text-ink" target="_blank">
-                      privacy policy
+                    <Link
+                      href={settings.terms.href}
+                      className="link-underline text-ink"
+                      target="_blank"
+                    >
+                      Terms &amp; Deposit Policy (version {settings.terms.version})
                     </Link>{" "}
-                    and to Hair &amp; Co contacting me about this booking.
+                    and the{" "}
+                    <Link href="/privacy" className="link-underline text-ink" target="_blank">
+                      Privacy Policy
+                    </Link>
+                    , and to Hair &amp; Co contacting me about this booking.
                   </span>
                 </label>
 
@@ -839,7 +892,13 @@ export function BookingWizard({
                     disabled={submitting}
                     className="label inline-flex items-center justify-between gap-8 bg-ink px-5 py-4 text-white hover:bg-black disabled:cursor-wait disabled:opacity-50"
                   >
-                    {submitting ? "Booking…" : "Confirm booking"}
+                    {submitting
+                      ? settings.payments.enabled
+                        ? "Redirecting…"
+                        : "Booking…"
+                      : settings.payments.enabled
+                        ? "Pay deposit & confirm"
+                        : "Confirm booking"}
                     <span aria-hidden="true">↗</span>
                   </button>
                 </div>
@@ -867,12 +926,35 @@ export function BookingWizard({
                 <p>{time ? formatTime(time) : "Not selected"}</p>
               </div>
               <div className="flex items-center justify-between border-t border-line pt-4">
-                <span className="label text-muted">Price</span>
+                <span className="label text-muted">Service price</span>
                 <span className="tabular-nums">{selectedPrice}</span>
               </div>
-              <p className="text-xs leading-relaxed text-muted">
-                Pay in salon. {settings.booking.policyNote}
-              </p>
+              {settings.payments.enabled && service ? (
+                <>
+                  <div className="flex items-center justify-between">
+                    <span className="label text-muted">Deposit today</span>
+                    <span className="tabular-nums">
+                      {formatPrice(depositCents, "fixed")}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="label text-muted">Balance in salon</span>
+                    <span className="tabular-nums">
+                      {formatPrice(balanceCents, "fixed")}
+                    </span>
+                  </div>
+                  <p className="text-xs leading-relaxed text-muted">
+                    {settings.payments.depositNote}
+                    {service.priceType === "from"
+                      ? " The final price and balance are confirmed in the salon."
+                      : ""}
+                  </p>
+                </>
+              ) : (
+                <p className="text-xs leading-relaxed text-muted">
+                  Pay in salon. {settings.booking.policyNote}
+                </p>
+              )}
             </div>
             <a
               href={`tel:${settings.contact.phoneE164}`}

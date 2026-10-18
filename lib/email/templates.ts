@@ -62,13 +62,29 @@ function detailRow(label: string, value: string) {
 }
 
 function summaryHtml(booking: BookingRow) {
+  const paid = booking.paymentStatus === "paid";
+  const balance = paid
+    ? Math.max(0, booking.priceCents - booking.depositCents)
+    : booking.priceCents;
+  const fromNote =
+    booking.priceType === "from"
+      ? " Final price and balance are confirmed in the salon."
+      : "";
+
   return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;border-top:1px solid #e5e2dc;border-bottom:1px solid #e5e2dc;">
     ${detailRow("Reference", booking.reference)}
     ${detailRow("Service", booking.serviceName)}
     ${detailRow("Date", formatDateLong(booking.date))}
     ${detailRow("Time", `${formatTime(booking.startTime)} – ${formatTime(booking.endTime)}`)}
     ${detailRow("Duration", formatDuration(booking.durationMinutes))}
-    ${detailRow("Price", `${formatPrice(booking.priceCents, booking.priceType)} · pay in salon`)}
+    ${detailRow("Service price", formatPrice(booking.priceCents, booking.priceType))}
+    ${
+      paid
+        ? detailRow("Deposit paid", formatPrice(booking.depositCents, "fixed")) +
+          detailRow("Balance in salon", formatPrice(balance, "fixed"))
+        : detailRow("Payment", "Pay in salon")
+    }
+    ${fromNote ? detailRow("Please note", fromNote.trim()) : ""}
   </table>`;
 }
 
@@ -85,7 +101,7 @@ export function ownerEmail(booking: BookingRow, settings: SiteSettings) {
   `;
 
   return {
-    subject: `New booking — ${singleLine(booking.customerName)} · ${singleLine(booking.serviceName)} · ${formatDateLong(booking.date)} ${formatTime(booking.startTime)}`,
+    subject: `${booking.paymentStatus === "paid" ? "New paid booking" : "New booking"} — ${singleLine(booking.customerName)} · ${singleLine(booking.serviceName)} · ${formatDateLong(booking.date)} ${formatTime(booking.startTime)}`,
     html: layout(settings, body),
     text: [
       "New booking",
@@ -93,6 +109,7 @@ export function ownerEmail(booking: BookingRow, settings: SiteSettings) {
       `Service: ${booking.serviceName}`,
       `Date: ${formatDateLong(booking.date)}`,
       `Time: ${formatTime(booking.startTime)} – ${formatTime(booking.endTime)}`,
+      `Payment: ${booking.paymentStatus === "paid" ? `Deposit paid ${formatPrice(booking.depositCents, "fixed")}; balance ${formatPrice(Math.max(0, booking.priceCents - booking.depositCents), "fixed")} in salon` : "Pay in salon"}`,
       `Phone: ${booking.customerPhone}`,
       `Email: ${booking.customerEmail}`,
       booking.notes ? `Notes: ${booking.notes}` : "",
@@ -122,6 +139,9 @@ export function customerEmail(booking: BookingRow, settings: SiteSettings) {
       `Booking confirmed: ${booking.reference}`,
       `${booking.serviceName}`,
       `${formatDateLong(booking.date)} at ${formatTime(booking.startTime)}`,
+      booking.paymentStatus === "paid"
+        ? `Deposit paid: ${formatPrice(booking.depositCents, "fixed")}. Balance in salon: ${formatPrice(Math.max(0, booking.priceCents - booking.depositCents), "fixed")}.`
+        : "Payment: pay in salon.",
       `${settings.contact.addressFull}`,
       `Phone: ${settings.contact.phoneDisplay}`,
       settings.booking.policyNote,

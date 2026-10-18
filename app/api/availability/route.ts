@@ -6,11 +6,12 @@ import {
   isValidDateString,
 } from "@/lib/booking/slots";
 import {
+  getBlockingBookingsForDate,
   getClosuresForDate,
-  getConfirmedBookingsForDate,
   getServiceById,
   getSettingsForAdmin,
 } from "@/lib/db/queries";
+import { isStripeConfigured } from "@/lib/payments/stripe";
 
 export async function GET(request: Request) {
   await connection();
@@ -55,7 +56,7 @@ export async function GET(request: Request) {
 
     const [settings, bookings, closures] = await Promise.all([
       getSettingsForAdmin(),
-      getConfirmedBookingsForDate(date),
+      getBlockingBookingsForDate(date),
       getClosuresForDate(date),
     ]);
 
@@ -64,6 +65,18 @@ export async function GET(request: Request) {
         {
           closed: true,
           reason: "Online booking is paused. Please call the salon.",
+          slots: [],
+          timezone: "Australia/Sydney",
+        },
+        { status: 200 },
+      );
+    }
+
+    if (settings.payments.enabled && !isStripeConfigured()) {
+      return NextResponse.json(
+        {
+          closed: true,
+          reason: "Online payment is temporarily unavailable. Please call the salon.",
           slots: [],
           timezone: "Australia/Sydney",
         },

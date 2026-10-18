@@ -3,6 +3,10 @@ import { connection } from "next/server";
 
 import { getDashboardData, getSettingsForAdmin } from "@/lib/db/queries";
 import { isEmailConfigured } from "@/lib/email/send";
+import {
+  getStripeMode,
+  isStripeConfigured,
+} from "@/lib/payments/stripe";
 import { formatDateShort, formatPrice, formatTime } from "@/lib/utils";
 
 export default async function AdminDashboardPage() {
@@ -14,6 +18,8 @@ export default async function AdminDashboardPage() {
 
   const notifyEmail =
     settings.booking.notifyEmail || process.env.BOOKING_NOTIFY_EMAIL || "";
+  const stripeMode = getStripeMode();
+  const stripeConfigured = isStripeConfigured();
 
   return (
     <div className="mx-auto max-w-6xl space-y-10">
@@ -54,10 +60,26 @@ export default async function AdminDashboardPage() {
         </div>
       ) : null}
 
-      <div className="grid gap-px border border-line bg-line sm:grid-cols-2 xl:grid-cols-4">
+      {settings.payments.enabled && !stripeConfigured ? (
+        <div className="border border-ink/20 bg-mist px-5 py-4 text-sm leading-relaxed">
+          <strong>Stripe payments are enabled but not configured.</strong> Online
+          booking is blocked. Add test/live Stripe keys and the webhook secret,
+          then redeploy.
+        </div>
+      ) : null}
+
+      {settings.payments.enabled && stripeMode === "test" ? (
+        <div className="border border-ink/20 bg-white px-5 py-4 text-sm leading-relaxed">
+          <strong>Stripe test mode is active.</strong> Deposits are not real
+          money. Switch to live keys before taking real bookings.
+        </div>
+      ) : null}
+
+      <div className="grid gap-px border border-line bg-line sm:grid-cols-2 xl:grid-cols-5">
         {[
           ["Today", data.todayCount, "confirmed appointments"],
           ["Next 7 days", data.weekCount, "confirmed appointments"],
+          ["Pending payments", data.pendingCount, "checkout in progress"],
           ["Sample services", data.sampleCount, "need review"],
           [
             "Email alerts",

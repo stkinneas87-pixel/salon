@@ -3,13 +3,19 @@ import { ZodError } from "zod";
 
 import { getIpFromHeaders, hashIp } from "@/lib/auth/ip";
 import { BookingError, createBooking } from "@/lib/booking/create";
+import { getPage } from "@/lib/content/queries";
 import { bookingRequestSchema } from "@/lib/content/schemas";
 import {
+  cancelPendingBooking,
+  countActivePendingBookingsByIp,
   countRecentBookingsByIp,
   getSettingsForAdmin,
+  setBookingStripeSession,
   updateBookingEmailStatuses,
 } from "@/lib/db/queries";
 import { sendBookingEmails } from "@/lib/email/send";
+import { createDepositCheckoutSession } from "@/lib/payments/checkout";
+import { getStripe } from "@/lib/payments/stripe";
 import { getSiteUrl } from "@/lib/seo/metadata";
 
 function sameOrigin(request: Request) {
@@ -85,17 +91,83 @@ export async function POST(request: Request) {
           { status: 429 },
         );
       }
+
+      const activePending = await countActivePendingBookingsByIp(ipHash);
+      if (activePending >= 2) {
+        return NextResponse.json(
+          {
+            error:
+              "You already have an appointment payment in progress. Please complete it or call the salon.",
+          },
+          { status: 429 },
+        );
+      }
     } catch (error) {
       console.error("Booking rate limit check failed", error);
     }
   }
 
+  const terms = await getPage("terms");
+  const termsVersion = terms.content.version.trim();
+  if (!termsVersion) {
+    return NextResponse.json(
+      { error: "The booking terms are not configured. Please call the salon." },
+      { status: 503 },
+    );
+  }
+
   try {
-    const booking = await createBooking(input, ipHash);
+    const booking = await createBooking(input, ipHash, termsVersion);
+
+    const settings = await getSettingsForAdmin();
+
+    if (booking.paymentStatus === "pending") {
+      let sessionId: string | null = null;
+      try {
+        const session = await createDepositCheckoutSession({
+          booking,
+          settings,
+        });
+        if (!session.url) {
+          throw new Error("Stripe did not return a Checkout URL.");
+        }
+        sessionId = session.id;
+        await setBookingStripeSession(booking.id, session.id);
+
+        return NextResponse.json(
+          {
+            ok: true,
+            requiresPayment: true,
+            checkoutUrl: session.url,
+            booking: {
+              reference: booking.reference,
+              depositCents: booking.depositCents,
+            },
+          },
+          { status: 201 },
+        );
+      } catch (sessionError) {
+        console.error("Stripe Checkout session creation failed", sessionError);
+        if (sessionId) {
+          try {
+            await getStripe().checkout.sessions.expire(sessionId);
+          } catch (expireError) {
+            console.error("Unable to expire orphaned Checkout session", expireError);
+          }
+        }
+        await cancelPendingBooking(booking.id);
+        return NextResponse.json(
+          {
+            error:
+              "Secure payment could not be started. Please try again or call the salon.",
+          },
+          { status: 502 },
+        );
+      }
+    }
 
     after(async () => {
       try {
-        const settings = await getSettingsForAdmin();
         const emailStatuses = await sendBookingEmails(booking, settings);
         await updateBookingEmailStatuses(
           booking.id,
@@ -110,6 +182,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         ok: true,
+        requiresPayment: false,
         booking: {
           reference: booking.reference,
           serviceName: booking.serviceName,

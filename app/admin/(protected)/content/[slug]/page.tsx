@@ -20,6 +20,7 @@ const labels: Record<PageSlug, string> = {
   services: "Services",
   contact: "Contact",
   privacy: "Privacy",
+  terms: "Terms",
 };
 
 export default async function AdminContentPage({

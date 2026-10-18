@@ -8,6 +8,7 @@ import type {
   PrivacyContent,
   ServicesContent,
   SiteSettings,
+  TermsContent,
 } from "./schemas";
 
 const heroImage = (): ImageRef => ({
@@ -105,6 +106,12 @@ export const defaultSettings: SiteSettings = {
     confirmationNote:
       "Your appointment is confirmed. Please arrive a few minutes early and call the salon if anything changes.",
   },
+  payments: {
+    enabled: false,
+    depositPercent: 20,
+    depositNote:
+      "A deposit is required to secure your booking. The balance is payable in the salon.",
+  },
   footer: {
     tagline: "Cuts, colour and styling on Sydney's Northern Beaches.",
     copyright: "© Hair & Co. All rights reserved.",
@@ -171,6 +178,14 @@ export const defaultPageSeo: Record<PageSlug, PageSeo> = {
     title: "Privacy Policy | Hair & Co",
     description:
       "How Hair & Co collects, uses and protects personal information submitted through the website and booking system.",
+    ogImage: defaultSettings.seo.defaultOgImage,
+    canonical: "",
+    noindex: false,
+  },
+  terms: {
+    title: "Terms & Deposit Policy | Hair & Co",
+    description:
+      "Booking, deposit, cancellation, refund and privacy terms for Hair & Co in Newport, Sydney.",
     ogImage: defaultSettings.seo.defaultOgImage,
     canonical: "",
     noindex: false,
@@ -366,11 +381,137 @@ export const privacyContent: PrivacyContent = {
     "We use this information to manage your appointment, contact you about your booking and keep a record of the services we have provided. We do not sell your personal information or use it for unrelated marketing.",
     "To protect the booking form from abuse, we may store a one-way hash of the IP address that made a booking. This cannot be used to identify you directly and is not used for advertising.",
     "Your booking details are stored in a secure database and may be sent by email to the salon and to you as a confirmation. Our service providers handle data on our behalf and are required to keep it secure.",
+    "If you pay a deposit online, card payments are processed by Stripe. Stripe receives the payment and contact information needed to process the transaction. Hair & Co does not receive or store your full card number. Stripe may process data outside Australia under its own privacy terms.",
     "We keep booking information only for as long as we need it to manage your appointment, maintain our records and meet legal obligations. You can ask us to correct or delete your personal information by calling the salon.",
     "This website uses an essential cookie only when a member of the Hair & Co team signs in to the administration area. It is not used for advertising or analytics.",
   ],
   contactNote:
     "For privacy questions or to request access to your information, call Hair & Co on +61 412 601 878.",
+};
+
+export const termsContent: TermsContent = {
+  title: "Terms & Deposit Policy",
+  version: "2026-10",
+  effectiveDate: "October 2026",
+  sections: [
+    {
+      title: "1. About Hair & Co",
+      paragraphs: [
+        "Hair & Co is a hair salon at 1/371 Barrenjoey Rd, Newport NSW 2107, Australia. Phone: +61 412 601 878. ABN: available on request.",
+        "These terms apply to bookings, services and payments made through this website or in the salon. They are governed by the laws of New South Wales and Australia, including the Australian Consumer Law.",
+      ],
+    },
+    {
+      title: "2. Your consumer rights",
+      paragraphs: [
+        "Our services come with guarantees that cannot be excluded under the Australian Consumer Law, including that services are provided with due care and skill, are fit for the purpose you made known to us, and are supplied within a reasonable time.",
+        "Nothing in these terms excludes, restricts or modifies those rights. If a guarantee applies, you may be entitled to a remedy even where these terms say something different.",
+      ],
+    },
+    {
+      title: "3. Bookings and confirmation",
+      paragraphs: [
+        "A booking request is an offer. It is confirmed only when we send a booking confirmation and, where a deposit is required, when the deposit is paid.",
+        "You must provide accurate contact details and tell us about anything that may affect your service. If you are under 18, a parent or guardian must approve the booking and any colour or chemical service.",
+        "We may decline, change or cancel a booking where it is necessary for safety, staffing, availability or a genuine error, or where a customer is abusive, intoxicated or behaving unsafely. If we cancel for a reason within our control, we will offer a reschedule or refund the deposit. This does not limit your statutory rights.",
+      ],
+    },
+    {
+      title: "4. Consultations, services and pricing",
+      paragraphs: [
+        "Every service includes a consultation. Hair outcomes depend on your hair history, condition, products, home care and other factors. We will explain the likely result and realistic maintenance. We do not guarantee an exact colour, length, style or outcome where that would be misleading, but we will provide our services with due care and skill.",
+        "“From” prices are starting prices. Your final price may be higher depending on hair length, density, colour history, product use and the time required. We will confirm the price with you before the service begins. A deposit is credited towards the final service price.",
+      ],
+    },
+    {
+      title: "5. Health, allergies and patch tests",
+      paragraphs: [
+        "You must tell us about allergies, skin or scalp conditions, pregnancy, medications, recent chemical treatments or anything else that may affect your service. Colour or chemical services may require a patch test at least 48 hours before the appointment.",
+        "We may decline or modify a service if we believe it is unsafe to proceed. Refusing a service for a genuine safety reason is not a breach of these terms.",
+      ],
+    },
+    {
+      title: "6. Deposits and card payments",
+      paragraphs: [
+        "Where enabled, a deposit of 20% of the listed service price is required to secure a booking. The deposit is calculated on the listed price, rounded to the nearest Australian dollar, with a minimum of A$1, and is capped at the service price.",
+        "The deposit is not an extra fee. It is credited towards the final service price, and the remaining balance is payable in the salon.",
+        "Payments are processed by Stripe. We do not receive or store your full card number. Stripe may process payment data outside Australia. Prices are in Australian dollars and include GST unless stated otherwise. We do not add an undisclosed card surcharge.",
+        "If payment fails or is not completed within the checkout window, the booking is not confirmed and the held time may be released.",
+      ],
+    },
+    {
+      title: "7. Cancellations and rescheduling by you",
+      paragraphs: [
+        "If you cancel or reschedule with at least 48 hours’ notice before your appointment, we will refund the deposit to your original payment method or, if you prefer, transfer it to the rescheduled appointment. Stripe refunds may take 5–10 business days to appear, depending on your bank.",
+        "If you cancel with less than 48 hours’ notice, do not attend, or arrive so late that we cannot reasonably provide the service, we may retain some or all of the deposit as a reasonable cancellation fee for the reserved time and lost booking opportunity. We will consider exceptional circumstances in good faith, and this does not exclude any right you have under the Australian Consumer Law.",
+        "If you arrive late, we may need to shorten or reschedule the service to protect other appointments.",
+      ],
+    },
+    {
+      title: "8. Cancellations by us",
+      paragraphs: [
+        "If we cancel your appointment for a reason within our control, we will offer you a reschedule or refund the deposit in full. If we cannot provide a service you have paid for, you may be entitled to a remedy under the Australian Consumer Law.",
+      ],
+    },
+    {
+      title: "9. Refunds and service concerns",
+      paragraphs: [
+        "Deposit refunds are processed to the original payment method and are reviewed manually. A refund is not automatic simply because a customer changes their mind, except where these terms or the Australian Consumer Law require it.",
+        "If you are unhappy with a service, please contact us within 7 days on +61 412 601 878 and describe the concern. We will review it and, where appropriate, offer a correction or remedy. This does not limit your rights under the Australian Consumer Law, including your right to contact NSW Fair Trading or the ACCC.",
+      ],
+    },
+    {
+      title: "10. Prices, GST and receipts",
+      paragraphs: [
+        "All prices are in Australian dollars and include GST unless stated otherwise. We will provide a receipt or tax invoice on request. Prices may change; the price displayed or quoted at the time of booking or consultation applies. We do not charge an excessive card surcharge.",
+      ],
+    },
+    {
+      title: "11. Privacy and electronic communications",
+      paragraphs: [
+        "We collect the information needed to manage your booking, provide services, process payments and meet legal obligations. Our Privacy Policy explains what we collect, why, how long we keep it, who we share it with (including Stripe), and how to access or correct it.",
+        "Booking emails are transactional. We will only send marketing messages with your consent, and you can opt out at any time.",
+      ],
+    },
+    {
+      title: "12. Liability",
+      paragraphs: [
+        "To the extent permitted by law, we are not liable for indirect or consequential loss, or for loss caused by factors outside our reasonable control. Nothing in these terms excludes or limits liability that cannot lawfully be excluded, including liability under the Australian Consumer Law.",
+      ],
+    },
+    {
+      title: "13. Website and intellectual property",
+      paragraphs: [
+        "The website content, photographs, logo and copy are owned by or licensed to Hair & Co. You may use the website for personal booking purposes only. You must not scrape, copy, republish or misuse the content without permission.",
+      ],
+    },
+    {
+      title: "14. Chargebacks and payment disputes",
+      paragraphs: [
+        "If you believe a payment is wrong, please contact us first so we can investigate. We may provide booking records, terms acceptance, payment records and service records to Stripe or a financial institution in response to a chargeback. Contacting us or raising a chargeback does not limit your consumer rights.",
+      ],
+    },
+    {
+      title: "15. Changes to these terms",
+      paragraphs: [
+        "We may update these terms from time to time. The version displayed at checkout applies to a new booking. Changes do not retrospectively alter rights relating to an earlier booking. The current version and effective date are shown on this page.",
+      ],
+    },
+    {
+      title: "16. Contact and complaints",
+      paragraphs: [
+        "For booking, payment, privacy or complaint questions, contact Hair & Co at 1/371 Barrenjoey Rd, Newport NSW 2107, or call +61 412 601 878. If we cannot resolve a complaint, you can contact NSW Fair Trading or the ACCC. Nothing in this clause prevents you from exercising your legal rights.",
+      ],
+    },
+    {
+      title: "17. Governing law",
+      paragraphs: [
+        "If any part of these terms is unenforceable, the remaining parts continue to apply. These terms are governed by the laws of New South Wales, Australia. Consumers may also have rights under the law of the state or territory where they live.",
+      ],
+    },
+  ],
+  contactNote:
+    "For questions about these terms, deposits or refunds, call Hair & Co on +61 412 601 878.",
 };
 
 export const defaultPages = {
@@ -379,6 +520,7 @@ export const defaultPages = {
   services: { content: servicesContent, seo: defaultPageSeo.services },
   contact: { content: contactContent, seo: defaultPageSeo.contact },
   privacy: { content: privacyContent, seo: defaultPageSeo.privacy },
+  terms: { content: termsContent, seo: defaultPageSeo.terms },
 } as const;
 
 export type SeedService = {

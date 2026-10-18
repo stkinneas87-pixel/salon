@@ -40,6 +40,7 @@ A monochrome editorial website, CMS and appointment booking system for Hair & Co
    - `ADMIN_PASSWORD_HASH` (see below)
    - `NEXT_PUBLIC_SITE_URL` (use `http://localhost:3000` locally)
    - Resend variables when you want live email
+   - Stripe test variables when you want to test deposits
 
 3. Generate the admin password hash:
 
@@ -81,8 +82,68 @@ A monochrome editorial website, CMS and appointment booking system for Hair & Co
 - Bookings inside the minimum notice period or outside the booking window are rejected.
 - Closures block any overlapping slot.
 - Submissions re-check capacity inside a Postgres transaction with a per-date advisory lock, so two people cannot take the same last slot.
-- Payment is in salon. No card details are collected.
+- Payments are disabled by default. Enable Stripe deposits in **Admin → Settings → Payments**.
+- When payments are enabled, the customer pays the configured percentage deposit before the booking is confirmed; the balance is paid in the salon.
+- Unpaid checkouts hold the slot for 30 minutes. The booking is not confirmed and no confirmation email is sent until Stripe reports payment.
 - Customers receive a confirmation email when Resend is configured. The admin booking page can resend either email.
+- The `/terms` page and required checkout acceptance record the terms version on each booking.
+
+## Stripe deposits
+
+1. Create/activate a Stripe Australia account.
+2. Add `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` to `.env.local` and Vercel.
+3. Apply the database migration:
+
+   ```powershell
+   npm run db:migrate
+   ```
+
+4. In **Admin → Settings → Payments**, set the deposit percentage and enable payments.
+5. Add a Stripe webhook endpoint for `https://your-domain.com/api/stripe/webhook` with:
+   - `checkout.session.completed`
+   - `checkout.session.expired`
+   - `checkout.session.async_payment_succeeded`
+   - `charge.refunded`
+6. Copy the endpoint signing secret into `STRIPE_WEBHOOK_SECRET` and redeploy.
+
+### Test without real money
+
+Use Stripe test mode locally or on a Vercel Preview deployment:
+
+```powershell
+stripe login
+stripe listen --forward-to localhost:3000/api/stripe/webhook
+```
+
+Put the printed `whsec_...` into `STRIPE_WEBHOOK_SECRET`, restart the dev server, enable payments in admin, and pay with:
+
+```text
+Card: 4242 4242 4242 4242
+Expiry: any future date
+CVC: any 3 digits
+```
+
+A declined test card is `4000 0000 0000 0002`. Test-mode refunds are also fake.
+
+Test keys are rejected on the production deployment; production requires live keys. Live keys are rejected on local/preview environments.
+
+### Refunds and cancellations
+
+- Refunds are full-deposit refunds only and are issued from the booking detail page in admin.
+- Refunding does **not** cancel the booking; cancel separately if required.
+- Cancelling a paid booking does not automatically refund the deposit.
+- Cancelling a pending-payment booking expires its Stripe Checkout session.
+- Paid bookings cannot be deleted until refunded.
+
+### Legal content
+
+The `/terms` page is a draft starting point. Before enabling live payments:
+
+- Replace “ABN: available on request” with the real ABN and business details.
+- Have the Terms, Privacy Policy, 48-hour deposit/refund policy and GST/tax-invoice wording reviewed by an Australian lawyer and accountant.
+- Update the Privacy Policy to describe Stripe processing and overseas data handling.
+- Confirm the refund/chargeback procedure and business insurance.
+- Increment the Terms version whenever policy wording changes.
 
 ## Resend
 

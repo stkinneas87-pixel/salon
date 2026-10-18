@@ -13,6 +13,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     services: 0.9,
     contact: 0.7,
     privacy: 0.2,
+    terms: 0.3,
   };
 
   return (Object.keys(pagePaths) as Array<keyof typeof pagePaths>)

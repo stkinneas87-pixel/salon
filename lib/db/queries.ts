@@ -6,8 +6,10 @@ import {
   count,
   desc,
   eq,
+  gt,
   gte,
   lte,
+  or,
   sql,
 } from "drizzle-orm";
 
@@ -74,13 +76,88 @@ export async function getServiceBySlug(slug: string): Promise<ServiceRow | null>
   return rows[0] ?? null;
 }
 
-export async function getConfirmedBookingsForDate(date: string) {
+export async function getBlockingBookingsForDate(date: string) {
   const db = requireDb();
   return db
+    .select({
+      startTime: bookings.startTime,
+      endTime: bookings.endTime,
+      status: bookings.status,
+    })
+    .from(bookings)
+    .where(
+      and(
+        eq(bookings.date, date),
+        or(
+          eq(bookings.status, "confirmed"),
+          and(
+            eq(bookings.status, "pending_payment"),
+            eq(bookings.paymentStatus, "pending"),
+            gt(bookings.paymentExpiresAt, sql`now()`),
+          ),
+        ),
+      ),
+    )
+    .orderBy(asc(bookings.startTime));
+}
+
+export async function getBookingByStripeSessionId(sessionId: string) {
+  const db = requireDb();
+  const rows = await db
     .select()
     .from(bookings)
-    .where(and(eq(bookings.date, date), eq(bookings.status, "confirmed")))
-    .orderBy(asc(bookings.startTime));
+    .where(eq(bookings.stripeSessionId, sessionId))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+export async function setBookingStripeSession(
+  id: string,
+  stripeSessionId: string,
+) {
+  const db = requireDb();
+  await db
+    .update(bookings)
+    .set({ stripeSessionId, updatedAt: new Date() })
+    .where(eq(bookings.id, id));
+}
+
+export async function cancelPendingBooking(
+  id: string,
+  paymentStatus: "failed" | "expired" = "failed",
+) {
+  const db = requireDb();
+  await db
+    .update(bookings)
+    .set({
+      status: "cancelled",
+      paymentStatus,
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(bookings.id, id),
+        eq(bookings.status, "pending_payment"),
+      ),
+    );
+}
+
+export async function expireStalePendingBookings() {
+  const db = requireDb();
+  await db
+    .update(bookings)
+    .set({
+      status: "cancelled",
+      paymentStatus: "expired",
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(bookings.status, "pending_payment"),
+        eq(bookings.paymentStatus, "pending"),
+        lte(bookings.paymentExpiresAt, sql`now()`),
+      ),
+    );
 }
 
 export async function getClosuresForDate(date: string): Promise<ClosureRow[]> {
@@ -98,7 +175,12 @@ export async function getUpcomingClosures() {
 }
 
 export type BookingFilters = {
-  status?: "confirmed" | "cancelled" | "completed" | "no_show";
+  status?:
+    | "pending_payment"
+    | "confirmed"
+    | "cancelled"
+    | "completed"
+    | "no_show";
   date?: string;
   page?: number;
   pageSize?: number;
@@ -147,7 +229,9 @@ export async function getDashboardData() {
   const today = getSydneyToday();
   const weekEnd = addDays(today, 6);
 
-  const [todayCount, weekCount, sampleCount, recent] = await Promise.all([
+  await expireStalePendingBookings();
+
+  const [todayCount, weekCount, sampleCount, pendingCount, recent] = await Promise.all([
     db
       .select({ value: count() })
       .from(bookings)
@@ -169,6 +253,16 @@ export async function getDashboardData() {
       .from(services)
       .where(eq(services.isSample, true)),
     db
+      .select({ value: count() })
+      .from(bookings)
+      .where(
+        and(
+          eq(bookings.status, "pending_payment"),
+          eq(bookings.paymentStatus, "pending"),
+          gt(bookings.paymentExpiresAt, sql`now()`),
+        ),
+      ),
+    db
       .select()
       .from(bookings)
       .where(gte(bookings.date, today))
@@ -181,6 +275,7 @@ export async function getDashboardData() {
     todayCount: todayCount[0]?.value ?? 0,
     weekCount: weekCount[0]?.value ?? 0,
     sampleCount: sampleCount[0]?.value ?? 0,
+    pendingCount: pendingCount[0]?.value ?? 0,
     recent,
   };
 }
@@ -193,6 +288,22 @@ export async function countRecentBookingsByIp(ipHash: string) {
     .from(bookings)
     .where(
       and(eq(bookings.ipHash, ipHash), gte(bookings.createdAt, since)),
+    );
+  return row?.value ?? 0;
+}
+
+export async function countActivePendingBookingsByIp(ipHash: string) {
+  const db = requireDb();
+  const [row] = await db
+    .select({ value: count() })
+    .from(bookings)
+    .where(
+      and(
+        eq(bookings.ipHash, ipHash),
+        eq(bookings.status, "pending_payment"),
+        eq(bookings.paymentStatus, "pending"),
+        gt(bookings.paymentExpiresAt, sql`now()`),
+      ),
     );
   return row?.value ?? 0;
 }

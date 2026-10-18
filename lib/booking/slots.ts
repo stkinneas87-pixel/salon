@@ -77,7 +77,12 @@ export function peakConcurrentBookings(
   const events: Array<{ time: number; delta: 1 | -1 }> = [];
 
   for (const booking of bookings) {
-    if (booking.status !== "confirmed") continue;
+    if (
+      booking.status !== "confirmed" &&
+      booking.status !== "pending_payment"
+    ) {
+      continue;
+    }
     const bookingStart = timeToMinutes(booking.startTime);
     const bookingEnd = timeToMinutes(booking.endTime);
     const from = Math.max(bookingStart, start);

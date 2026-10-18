@@ -3,7 +3,8 @@ import { Suspense } from "react";
 
 import { BookingWizard } from "@/components/book/booking-wizard";
 import { ActionLink } from "@/components/ui/action-link";
-import { getPublicServices, getSettings } from "@/lib/content/queries";
+import { getPage, getPublicServices, getSettings } from "@/lib/content/queries";
+import { isStripeConfigured } from "@/lib/payments/stripe";
 
 export const metadata: Metadata = {
   title: { absolute: "Book an appointment | Hair & Co" },
@@ -21,10 +22,13 @@ function BookingFallback() {
 }
 
 export default async function BookPage() {
-  const [services, settings] = await Promise.all([
+  const [services, settings, terms] = await Promise.all([
     getPublicServices(),
     getSettings(),
+    getPage("terms"),
   ]);
+  const paymentsReady =
+    !settings.payments.enabled || isStripeConfigured();
 
   return (
     <>
@@ -35,13 +39,15 @@ export default async function BookPage() {
             Book an appointment.
           </h1>
           <p className="pretty mt-5 max-w-lg text-sm leading-relaxed text-muted lg:text-base">
-            Choose a service, find a time that works and leave the rest to us.
-            Payment is in salon.
+            Choose a service, find a time that works and leave the rest to us.{" "}
+            {settings.payments.enabled
+              ? "A deposit is paid online; the balance is paid in salon."
+              : "Payment is in salon."}
           </p>
         </div>
       </section>
 
-      {settings.booking.enabled ? (
+      {settings.booking.enabled && paymentsReady ? (
         <Suspense fallback={<BookingFallback />}>
           <BookingWizard
             services={services}
@@ -51,6 +57,15 @@ export default async function BookPage() {
                 maxAdvanceDays: settings.booking.maxAdvanceDays,
                 policyNote: settings.booking.policyNote,
                 confirmationNote: settings.booking.confirmationNote,
+              },
+              payments: {
+                enabled: settings.payments.enabled,
+                depositPercent: settings.payments.depositPercent,
+                depositNote: settings.payments.depositNote,
+              },
+              terms: {
+                version: terms.content.version,
+                href: "/terms",
               },
               contact: {
                 phoneDisplay: settings.contact.phoneDisplay,
@@ -64,7 +79,9 @@ export default async function BookPage() {
       ) : (
         <div className="container-narrow py-16 lg:py-24">
           <h2 className="display text-4xl lg:text-5xl">
-            Online booking is paused.
+            {settings.booking.enabled
+              ? "Online payment is temporarily unavailable."
+              : "Online booking is paused."}
           </h2>
           <p className="mt-5 max-w-lg text-sm leading-relaxed text-muted">
             Call the salon on {settings.contact.phoneDisplay} and we&apos;ll find
