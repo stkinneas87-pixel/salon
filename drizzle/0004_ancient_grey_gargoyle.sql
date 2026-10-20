@@ -1,0 +1,1 @@
+ALTER TABLE "services" ADD COLUMN "sale_price_cents" integer;

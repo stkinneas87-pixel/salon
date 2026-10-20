@@ -4,10 +4,16 @@ import { Resend } from "resend";
 
 import type { SiteSettings } from "@/lib/content/schemas";
 import type { BookingRow } from "@/lib/db/schema";
+import { createInvoicePdf } from "@/lib/payments/invoice";
 
 import { customerEmail, ownerEmail } from "./templates";
 
 export type EmailResult = "sent" | "failed" | "skipped";
+
+type EmailAttachment = {
+  filename: string;
+  content: Buffer;
+};
 
 function fromAddress() {
   return process.env.BOOKING_FROM_EMAIL?.trim() || "";
@@ -17,18 +23,35 @@ export function isEmailConfigured() {
   return Boolean(process.env.RESEND_API_KEY && fromAddress());
 }
 
+async function paidInvoiceAttachments(
+  booking: BookingRow,
+  settings: SiteSettings,
+): Promise<EmailAttachment[] | undefined> {
+  if (booking.paymentStatus !== "paid") return undefined;
+
+  try {
+    const invoice = await createInvoicePdf(booking, settings);
+    return [{ filename: invoice.filename, content: Buffer.from(invoice.content) }];
+  } catch (error) {
+    console.error("Tax invoice generation failed", error);
+    return undefined;
+  }
+}
+
 async function send({
   to,
   replyTo,
   subject,
   html,
   text,
+  attachments,
 }: {
   to: string;
   replyTo?: string;
   subject: string;
   html: string;
   text: string;
+  attachments?: EmailAttachment[];
 }): Promise<EmailResult> {
   if (!isEmailConfigured() || !to) return "skipped";
 
@@ -41,6 +64,7 @@ async function send({
       subject,
       html,
       text,
+      attachments,
     });
 
     if (error) {
@@ -65,7 +89,10 @@ export async function sendBookingEmails(
     "";
 
   const owner = ownerEmail(booking, settings);
-  const customer = customerEmail(booking, settings);
+  const attachments = await paidInvoiceAttachments(booking, settings);
+  const customer = customerEmail(booking, settings, {
+    invoiceAttached: Boolean(attachments),
+  });
 
   const [ownerStatus, customerStatus] = await Promise.all([
     ownerTo
@@ -83,6 +110,7 @@ export async function sendBookingEmails(
       subject: customer.subject,
       html: customer.html,
       text: customer.text,
+      attachments,
     }),
   ]);
 
@@ -116,12 +144,16 @@ export async function resendCustomerEmail(
     settings.booking.notifyEmail.trim() ||
     process.env.BOOKING_NOTIFY_EMAIL?.trim() ||
     "";
-  const message = customerEmail(booking, settings);
+  const attachments = await paidInvoiceAttachments(booking, settings);
+  const message = customerEmail(booking, settings, {
+    invoiceAttached: Boolean(attachments),
+  });
   return send({
     to: booking.customerEmail,
     replyTo: ownerTo || undefined,
     subject: message.subject,
     html: message.html,
     text: message.text,
+    attachments,
   });
 }

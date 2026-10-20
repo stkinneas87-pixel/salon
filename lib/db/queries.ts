@@ -27,6 +27,7 @@ import {
   bookings,
   closures,
   pages,
+  promotions,
   services,
   siteSettings,
   type BookingRow,
@@ -58,6 +59,41 @@ export async function getAllServices(): Promise<ServiceRow[]> {
     .select()
     .from(services)
     .orderBy(asc(services.sortOrder), asc(services.name));
+}
+
+export async function getPromotionsForAdmin() {
+  const db = requireDb();
+  return db
+    .select({
+      id: promotions.id,
+      title: promotions.title,
+      kicker: promotions.kicker,
+      description: promotions.description,
+      images: promotions.images,
+      serviceId: promotions.serviceId,
+      startDate: promotions.startDate,
+      endDate: promotions.endDate,
+      unlimited: promotions.unlimited,
+      active: promotions.active,
+      sortOrder: promotions.sortOrder,
+      updatedAt: promotions.updatedAt,
+      serviceName: services.name,
+      serviceActive: services.active,
+      serviceIsSample: services.isSample,
+    })
+    .from(promotions)
+    .leftJoin(services, eq(promotions.serviceId, services.id))
+    .orderBy(asc(promotions.sortOrder), asc(promotions.title));
+}
+
+export async function getPromotionById(id: string) {
+  const db = requireDb();
+  const rows = await db
+    .select()
+    .from(promotions)
+    .where(eq(promotions.id, id))
+    .limit(1);
+  return rows[0] ?? null;
 }
 
 export async function getServiceById(id: string): Promise<ServiceRow | null> {

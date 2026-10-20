@@ -2,8 +2,9 @@ import Link from "next/link";
 import { connection } from "next/server";
 
 import { toggleServiceFormAction } from "@/actions/services";
+import { ServicePrice } from "@/components/site/service-price";
 import { getAllServices } from "@/lib/db/queries";
-import { formatDuration, formatPrice } from "@/lib/utils";
+import { formatDuration } from "@/lib/utils";
 
 export default async function AdminServicesPage() {
   await connection();
@@ -69,7 +70,11 @@ export default async function AdminServicesPage() {
                 </td>
                 <td className="px-4 py-4">{service.category}</td>
                 <td className="px-4 py-4 whitespace-nowrap">
-                  {formatPrice(service.priceCents, service.priceType)}
+                  <ServicePrice
+                    priceCents={service.priceCents}
+                    salePriceCents={service.salePriceCents}
+                    priceType={service.priceType}
+                  />
                 </td>
                 <td className="px-4 py-4 whitespace-nowrap">
                   {formatDuration(service.durationMinutes)}

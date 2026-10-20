@@ -1,6 +1,6 @@
 import type { PublicService } from "@/lib/content/queries";
 import { dayKeys, type DayKey, type SiteSettings } from "@/lib/content/schemas";
-import { absoluteUrl } from "@/lib/utils";
+import { absoluteUrl, getEffectivePriceCents } from "@/lib/utils";
 
 import { getSiteUrl, pagePaths } from "./metadata";
 
@@ -87,7 +87,9 @@ export function servicesJsonLd(
         url: absoluteUrl(`/book?service=${service.slug}`, siteUrl),
         offers: {
           "@type": "Offer",
-          price: (service.priceCents / 100).toFixed(2),
+          price: (
+            getEffectivePriceCents(service.priceCents, service.salePriceCents) / 100
+          ).toFixed(2),
           priceCurrency: "AUD",
           availability: "https://schema.org/InStock",
           url: absoluteUrl(`/book?service=${service.slug}`, siteUrl),

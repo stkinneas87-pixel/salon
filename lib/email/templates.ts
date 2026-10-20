@@ -1,5 +1,6 @@
 import type { BookingRow } from "@/lib/db/schema";
 import type { SiteSettings } from "@/lib/content/schemas";
+import { invoiceNumberFor } from "@/lib/payments/invoice-meta";
 import {
   formatDateLong,
   formatDuration,
@@ -120,12 +121,23 @@ export function ownerEmail(booking: BookingRow, settings: SiteSettings) {
   };
 }
 
-export function customerEmail(booking: BookingRow, settings: SiteSettings) {
+export function customerEmail(
+  booking: BookingRow,
+  settings: SiteSettings,
+  options: { invoiceAttached?: boolean } = {},
+) {
+  const paid = booking.paymentStatus === "paid";
+  const invoiceAttached = paid && options.invoiceAttached === true;
   const body = `
     <p style="margin:0 0 8px;color:#6b6b6b;font-size:11px;letter-spacing:2px;text-transform:uppercase;">Booking confirmed</p>
     <h1 style="margin:0 0 16px;font-family:Georgia,serif;font-size:32px;line-height:1.2;font-weight:400;">See you soon, ${escapeHtml(booking.customerName.split(" ")[0] || booking.customerName)}.</h1>
     <p style="margin:0;font-size:14px;line-height:1.7;color:#3a3a3a;">${escapeHtml(settings.booking.confirmationNote)}</p>
     ${summaryHtml(booking)}
+    ${
+      invoiceAttached
+        ? `<p style="margin:0 0 16px;padding:12px 14px;background:#f3f1ed;border:1px solid #e5e2dc;font-size:13px;line-height:1.7;color:#3a3a3a;"><strong>Tax invoice ${escapeHtml(invoiceNumberFor(booking.reference))}</strong><br />Your tax invoice is attached to this email as a PDF.</p>`
+        : ""
+    }
     <p style="margin:0 0 8px;font-size:14px;line-height:1.7;"><strong>Where:</strong><br />${escapeHtml(settings.contact.addressFull)}</p>
     <p style="margin:0 0 8px;font-size:14px;line-height:1.7;"><strong>Phone:</strong> ${escapeHtml(settings.contact.phoneDisplay)}</p>
     <p style="margin:24px 0 0;font-size:13px;line-height:1.7;color:#6b6b6b;">${escapeHtml(settings.booking.policyNote)}</p>
@@ -133,18 +145,25 @@ export function customerEmail(booking: BookingRow, settings: SiteSettings) {
   `;
 
   return {
-    subject: `Your booking at ${singleLine(settings.brand.name)} — ${formatDateLong(booking.date)}`,
+    subject: invoiceAttached
+      ? `Your booking and tax invoice at ${singleLine(settings.brand.name)} — ${formatDateLong(booking.date)}`
+      : `Your booking at ${singleLine(settings.brand.name)} — ${formatDateLong(booking.date)}`,
     html: layout(settings, body),
     text: [
       `Booking confirmed: ${booking.reference}`,
       `${booking.serviceName}`,
       `${formatDateLong(booking.date)} at ${formatTime(booking.startTime)}`,
-      booking.paymentStatus === "paid"
+      paid
         ? `Deposit paid: ${formatPrice(booking.depositCents, "fixed")}. Balance in salon: ${formatPrice(Math.max(0, booking.priceCents - booking.depositCents), "fixed")}.`
         : "Payment: pay in salon.",
+      invoiceAttached
+        ? `Tax invoice: attached as a PDF (${invoiceNumberFor(booking.reference)}).`
+        : "",
       `${settings.contact.addressFull}`,
       `Phone: ${settings.contact.phoneDisplay}`,
       settings.booking.policyNote,
-    ].join("\n"),
+    ]
+      .filter(Boolean)
+      .join("\n"),
   };
 }

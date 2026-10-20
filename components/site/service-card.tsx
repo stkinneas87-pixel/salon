@@ -1,9 +1,10 @@
 import Link from "next/link";
 
 import type { PublicService } from "@/lib/content/queries";
-import { formatDuration, formatPrice } from "@/lib/utils";
+import { formatDuration } from "@/lib/utils";
 
 import { Reveal } from "./reveal";
+import { ServicePrice } from "./service-price";
 
 export function ServiceCard({
   service,
@@ -17,7 +18,8 @@ export function ServiceCard({
   return (
     <Reveal
       as="article"
-      className="group grid gap-6 border-t border-line py-8 lg:grid-cols-[0.5fr_1.5fr_1fr_auto] lg:items-start lg:gap-10"
+      id={service.slug}
+      className="group grid scroll-mt-32 gap-6 border-t border-line py-8 lg:grid-cols-[0.5fr_1.5fr_1fr_auto] lg:items-start lg:gap-10"
       delay={Math.min(index * 45, 220)}
     >
       <div className="label text-muted">
@@ -45,7 +47,11 @@ export function ServiceCard({
 
       <div className="flex items-baseline gap-4 lg:flex-col lg:items-start lg:gap-2">
         <p className="text-lg tabular-nums">
-          {formatPrice(service.priceCents, service.priceType)}
+          <ServicePrice
+            priceCents={service.priceCents}
+            salePriceCents={service.salePriceCents}
+            priceType={service.priceType}
+          />
         </p>
         <p className="label text-muted">{formatDuration(service.durationMinutes)}</p>
       </div>

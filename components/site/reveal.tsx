@@ -9,11 +9,13 @@ export function Reveal({
   className,
   delay = 0,
   as: Tag = "div",
+  id,
 }: {
   children: React.ReactNode;
   className?: string;
   delay?: number;
   as?: "div" | "section" | "article" | "li" | "span";
+  id?: string;
 }) {
   const ref = useRef<HTMLElement>(null);
 
@@ -43,6 +45,7 @@ export function Reveal({
   return (
     <Tag
       ref={ref as never}
+      id={id}
       data-reveal
       className={cn(className)}
       style={{ "--reveal-delay": `${delay}ms` } as React.CSSProperties}

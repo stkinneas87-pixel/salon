@@ -16,6 +16,7 @@ A monochrome editorial website, CMS and appointment booking system for Hair & Co
 
 - Home, About, Services, Contact and Privacy pages, with editable copy and per-page SEO.
 - Services with prices, durations, inclusions and booking links.
+- Optional discounted service prices: the normal price is struck through and the discounted price is shown in red. Booking deposits and balances use the discounted price.
 - Capacity-based live booking with closures, lead time, 60-day window and Sydney timezone.
 - Admin at `/admin` for pages, SEO, site settings, hours, services, closures, bookings and CSV export.
 - `HairSalon`, `Service`, `WebSite` and `BreadcrumbList` structured data.
@@ -48,7 +49,7 @@ A monochrome editorial website, CMS and appointment booking system for Hair & Co
    npm run hash-password -- "a-long-strong-password"
    ```
 
-   Copy the printed `ADMIN_PASSWORD_HASH` into `.env.local`.
+   Copy the **escaped `.env.local` value** (`\$2b\$12\$...`) into `.env.local`. Next.js expands unescaped `$` characters, which would silently empty the hash. For the Vercel dashboard, paste the **raw** value (`$2b$12$...`) shown by the script.
 
 4. Create the database tables and seed defaults:
 
@@ -87,6 +88,15 @@ A monochrome editorial website, CMS and appointment booking system for Hair & Co
 - Unpaid checkouts hold the slot for 30 minutes. The booking is not confirmed and no confirmation email is sent until Stripe reports payment.
 - Customers receive a confirmation email when Resend is configured. The admin booking page can resend either email.
 - The `/terms` page and required checkout acceptance record the terms version on each booking.
+
+## CMS images
+
+Admin uploads use server-side Vercel Blob uploads, so they work on localhost without browser-to-Vercel CORS issues.
+
+- The default assumes a **private** Blob store and serves images through `/api/media/cms/...`.
+- If the Blob store is public, set `BLOB_ACCESS=public`; uploads then return the public Blob URL.
+- `BLOB_READ_WRITE_TOKEN` is required in every environment where the admin uploads images.
+- Admin image uploads are compressed in the browser to WebP before upload.
 
 ## Stripe deposits
 
@@ -144,6 +154,22 @@ The `/terms` page is a draft starting point. Before enabling live payments:
 - Update the Privacy Policy to describe Stripe processing and overseas data handling.
 - Confirm the refund/chargeback procedure and business insurance.
 - Increment the Terms version whenever policy wording changes.
+
+## Landing-page promotions
+
+- Create promos in **Admin → Promotions**.
+- Each promo requires a title, description, one or more full-colour images and a linked service.
+- Mark it **Active** to include it in the landing-page modal.
+- Multiple active promos become a manual slider with arrows/dots and keyboard support.
+- Multiple images within one promo become an image slider in the modal; a single image has no image controls.
+- Each promo has a start date and either an inclusive end date or an “unlimited” setting. Expired, future and deactivated promos are hidden.
+- A promo is also hidden if its linked service is inactive or still sample data.
+- Deleting a service deletes its linked promotions.
+- The modal opens on every landing-page visit. The “Don’t show this again today” checkbox suppresses it for the rest of that local day via `localStorage`.
+- Primary CTA: **Book this service** → `/book?service=<slug>` with the service preselected.
+- Secondary CTA: **View service** → `/services#<slug>`.
+- Promo images are intentionally full colour and are not affected by the site’s grayscale treatment.
+- Run `npm run db:migrate` after deploying the promotions migration.
 
 ## Resend
 

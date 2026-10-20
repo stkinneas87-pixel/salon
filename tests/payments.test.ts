@@ -4,6 +4,10 @@ import {
   calculateBalanceCents,
   calculateDepositCents,
 } from "@/lib/payments/deposit";
+import {
+  gstComponentCents,
+  invoiceNumberFor,
+} from "@/lib/payments/invoice-meta";
 import { buildSlots, availableSlotTimes } from "@/lib/booking/slots";
 import { defaultSettings } from "@/lib/content/defaults";
 
@@ -28,6 +32,18 @@ describe("deposit calculation", () => {
   it("calculates the balance due", () => {
     expect(calculateBalanceCents(11000, 2200)).toBe(8800);
     expect(calculateBalanceCents(5000, 5000)).toBe(0);
+  });
+});
+
+describe("tax invoice metadata", () => {
+  it("derives the invoice number from the booking reference", () => {
+    expect(invoiceNumberFor("HC-ABC123")).toBe("INV-HC-ABC123");
+  });
+
+  it("extracts the GST component of GST-inclusive amounts", () => {
+    expect(gstComponentCents(11000)).toBe(1000);
+    expect(gstComponentCents(2200)).toBe(200);
+    expect(gstComponentCents(0)).toBe(0);
   });
 });
 

@@ -18,6 +18,7 @@ export default async function NewServicePage() {
         description: "",
         inclusions: [""],
         priceCents: 0,
+        salePriceCents: null,
         priceType: "fixed",
         durationMinutes: 60,
         image: null,

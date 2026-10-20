@@ -103,6 +103,7 @@ export async function GET(request: Request) {
           id: service.id,
           durationMinutes: service.durationMinutes,
           priceCents: service.priceCents,
+          salePriceCents: service.salePriceCents,
           priceType: service.priceType,
         },
       },

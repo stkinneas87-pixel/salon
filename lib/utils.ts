@@ -19,6 +19,28 @@ export function formatPrice(cents: number, type: "fixed" | "from") {
   return `${type === "from" ? "from " : ""}${formatMoney(cents)}`;
 }
 
+export function getEffectivePriceCents(
+  priceCents: number,
+  salePriceCents: number | null | undefined,
+) {
+  return salePriceCents !== null &&
+    salePriceCents !== undefined &&
+    salePriceCents < priceCents
+    ? salePriceCents
+    : priceCents;
+}
+
+export function hasSalePrice(
+  priceCents: number,
+  salePriceCents: number | null | undefined,
+) {
+  return (
+    salePriceCents !== null &&
+    salePriceCents !== undefined &&
+    salePriceCents < priceCents
+  );
+}
+
 export function formatDuration(minutes: number) {
   const hours = Math.floor(minutes / 60);
   const rest = minutes % 60;
@@ -92,6 +114,49 @@ export function formatDateShort(date: string) {
     month: "short",
     timeZone: "UTC",
   }).format(dateToUtc(date));
+}
+
+const dayFormatter = new Intl.DateTimeFormat("en-AU", {
+  day: "numeric",
+  timeZone: "UTC",
+});
+
+const dayMonthFormatter = new Intl.DateTimeFormat("en-AU", {
+  day: "numeric",
+  month: "long",
+  timeZone: "UTC",
+});
+
+const dayMonthYearFormatter = new Intl.DateTimeFormat("en-AU", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+  timeZone: "UTC",
+});
+
+const monthYearFormatter = new Intl.DateTimeFormat("en-AU", {
+  month: "long",
+  year: "numeric",
+  timeZone: "UTC",
+});
+
+export function formatDateRange(startDate: string, endDate: string | null) {
+  const start = dateToUtc(startDate);
+  if (!endDate) return `From ${dayMonthYearFormatter.format(start)}`;
+
+  const end = dateToUtc(endDate);
+  if (startDate === endDate) return dayMonthYearFormatter.format(start);
+
+  const sameYear = start.getUTCFullYear() === end.getUTCFullYear();
+  const sameMonth = sameYear && start.getUTCMonth() === end.getUTCMonth();
+
+  if (sameMonth) {
+    return `${dayFormatter.format(start)}–${dayFormatter.format(end)} ${monthYearFormatter.format(end)}`;
+  }
+  if (sameYear) {
+    return `${dayMonthFormatter.format(start)} – ${dayMonthFormatter.format(end)} ${end.getUTCFullYear()}`;
+  }
+  return `${dayMonthYearFormatter.format(start)} – ${dayMonthYearFormatter.format(end)}`;
 }
 
 export function getSydneyToday(now = new Date()): string {
