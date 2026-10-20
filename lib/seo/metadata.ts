@@ -24,6 +24,19 @@ export function getSiteUrl() {
     }
   }
 
+  // Preview deployments must return to their own deployment URL, otherwise
+  // Stripe checkouts started on a preview redirect to the production site.
+  const deployment = process.env.VERCEL_URL?.trim();
+  if (
+    deployment &&
+    process.env.VERCEL_ENV &&
+    process.env.VERCEL_ENV !== "production"
+  ) {
+    return `https://${deployment
+      .replace(/^https?:\/\//, "")
+      .replace(/\/$/, "")}`;
+  }
+
   const vercel = process.env.VERCEL_PROJECT_PRODUCTION_URL?.trim();
   if (vercel) return `https://${vercel.replace(/\/$/, "")}`;
 

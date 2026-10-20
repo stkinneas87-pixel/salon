@@ -12,7 +12,8 @@ export type EmailResult = "sent" | "failed" | "skipped";
 
 type EmailAttachment = {
   filename: string;
-  content: Buffer;
+  content: string;
+  contentType: string;
 };
 
 function fromAddress() {
@@ -31,7 +32,13 @@ async function paidInvoiceAttachments(
 
   try {
     const invoice = await createInvoicePdf(booking, settings);
-    return [{ filename: invoice.filename, content: Buffer.from(invoice.content) }];
+    return [
+      {
+        filename: invoice.filename,
+        content: Buffer.from(invoice.content).toString("base64"),
+        contentType: "application/pdf",
+      },
+    ];
   } catch (error) {
     console.error("Tax invoice generation failed", error);
     return undefined;
@@ -68,7 +75,12 @@ async function send({
     });
 
     if (error) {
-      console.error("Resend email failed", error.name);
+      console.error(
+        "Resend email failed",
+        error.name,
+        error.message,
+        attachments?.length ? "with attachments" : "without attachments",
+      );
       return "failed";
     }
 
