@@ -134,6 +134,24 @@ async function Loader({
       </dl>
 
       <p className="mt-6 max-w-lg text-sm leading-relaxed text-muted">
+        {booking.customerEmailStatus === "sent" ? (
+          <>
+            A tax invoice has been emailed to{" "}
+            <strong className="font-medium text-ink">
+              {booking.customerEmail}
+            </strong>
+            . If it does not arrive, check your spam folder or call the salon and
+            we will send another copy.
+          </>
+        ) : (
+          <>
+            Ask the salon for a copy of your tax invoice if it does not arrive by
+            email.
+          </>
+        )}
+      </p>
+
+      <p className="mt-6 max-w-lg text-sm leading-relaxed text-muted">
         {settings.booking.policyNote}
       </p>
 

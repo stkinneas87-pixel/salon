@@ -34,6 +34,7 @@ async function Loader({ params }: { params: Promise<{ id: string }> }) {
         description: service.description,
         inclusions: service.inclusions,
         priceCents: service.priceCents,
+        salePriceCents: service.salePriceCents,
         priceType: service.priceType,
         durationMinutes: service.durationMinutes,
         image: service.image,

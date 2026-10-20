@@ -3,9 +3,12 @@ import Link from "next/link";
 
 import { Marquee } from "@/components/site/marquee";
 import { ParallaxMedia } from "@/components/site/parallax-media";
+import { PromoModal } from "@/components/site/promo-modal";
 import { Reveal } from "@/components/site/reveal";
+import { ServicePrice } from "@/components/site/service-price";
 import { ActionLink } from "@/components/ui/action-link";
 import {
+  getActivePromotions,
   getPage,
   getPublicServices,
   getSettings,
@@ -15,7 +18,6 @@ import {
   formatClosedDays,
   formatDuration,
   formatHoursSummary,
-  formatPrice,
 } from "@/lib/utils";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -27,10 +29,11 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function HomePage() {
-  const [{ content }, settings, services] = await Promise.all([
+  const [{ content }, settings, services, promotions] = await Promise.all([
     getPage("home"),
     getSettings(),
     getPublicServices(),
+    getActivePromotions(),
   ]);
 
   const preview = services.slice(0, 3);
@@ -185,7 +188,11 @@ export default async function HomePage() {
                   </div>
                   <div className="flex items-baseline gap-4 lg:flex-col lg:items-start lg:gap-1">
                     <p className="text-base tabular-nums">
-                      {formatPrice(service.priceCents, service.priceType)}
+                      <ServicePrice
+                        priceCents={service.priceCents}
+                        salePriceCents={service.salePriceCents}
+                        priceType={service.priceType}
+                      />
                     </p>
                     <p className="label text-muted">
                       {formatDuration(service.durationMinutes)}
@@ -372,6 +379,8 @@ export default async function HomePage() {
           </Reveal>
         </div>
       </section>
+
+      <PromoModal promos={promotions} />
     </>
   );
 }

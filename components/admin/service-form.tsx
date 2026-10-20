@@ -18,6 +18,7 @@ export type ServiceFormValue = {
   description: string;
   inclusions: string[];
   priceCents: number;
+  salePriceCents: number | null;
   priceType: "fixed" | "from";
   durationMinutes: number;
   image: ImageRef | null;

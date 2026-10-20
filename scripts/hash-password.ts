@@ -11,7 +11,12 @@ async function main() {
   }
 
   const hash = await bcrypt.hash(password, 12);
-  console.log("\nADMIN_PASSWORD_HASH=" + hash);
+  const escapedForEnvFile = hash.replaceAll("$", "\\$");
+
+  console.log("\nFor .env.local (Next.js expands unescaped $ characters):");
+  console.log("ADMIN_PASSWORD_HASH=" + escapedForEnvFile);
+  console.log("\nFor the Vercel dashboard (paste the raw value):");
+  console.log("ADMIN_PASSWORD_HASH=" + hash);
   console.log(
     "\nAdd ADMIN_USERNAME, ADMIN_PASSWORD_HASH and AUTH_SECRET to .env.local and Vercel.",
   );

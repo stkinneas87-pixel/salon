@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 
 export type FieldDef =
   | {
-      type: "text" | "url" | "time" | "password";
+      type: "text" | "url" | "time" | "date" | "password";
       name: string;
       label: string;
       help?: string;
@@ -35,6 +35,13 @@ export type FieldDef =
     }
   | {
       type: "money";
+      name: string;
+      label: string;
+      help?: string;
+      wide?: boolean;
+    }
+  | {
+      type: "moneyOptional";
       name: string;
       label: string;
       help?: string;
@@ -114,6 +121,8 @@ export function emptyValue(field: FieldDef): unknown {
     case "number":
     case "money":
       return 0;
+    case "moneyOptional":
+      return null;
     case "time":
       return "09:00";
     case "image":
@@ -232,15 +241,24 @@ function ImageField({
     setError("");
     try {
       const compressed = await compressImage(file);
-      const { upload } = await import("@vercel/blob/client");
-      const blob = await upload(`cms/${Date.now()}-${compressed.name}`, compressed, {
-        access: "public",
-        handleUploadUrl: "/api/admin/upload",
-        contentType: compressed.type,
+      const form = new FormData();
+      form.append("file", compressed);
+      const response = await fetch("/api/admin/upload", {
+        method: "POST",
+        body: form,
       });
+      const result = (await response.json()) as {
+        url?: string;
+        error?: string;
+      };
+
+      if (!response.ok || !result.url) {
+        throw new Error(result.error || "Upload failed.");
+      }
+
       onChange({
         ...(value ?? {}),
-        src: blob.url,
+        src: result.url,
         alt: value?.alt ?? "",
       });
     } catch (uploadError) {
@@ -435,6 +453,7 @@ export function FormFields({
           case "text":
           case "url":
           case "time":
+          case "date":
           case "password":
             return (
               <InputShell key={field.name} field={field} wide={wide}>
@@ -495,6 +514,33 @@ export function FormFields({
                       setField(
                         field.name,
                         Math.round(Number(event.target.value) * 100),
+                      )
+                    }
+                  />
+                </div>
+              </InputShell>
+            );
+
+          case "moneyOptional":
+            return (
+              <InputShell key={field.name} field={field} wide={wide}>
+                <div className="relative">
+                  <span className="absolute top-1/2 left-3 -translate-y-1/2 text-sm text-muted">
+                    $
+                  </span>
+                  <input
+                    type="number"
+                    className="admin-input pl-7"
+                    min={0}
+                    step="0.01"
+                    value={current === null || current === undefined ? "" : Number(current) / 100}
+                    placeholder="No discount"
+                    onChange={(event) =>
+                      setField(
+                        field.name,
+                        event.target.value === ""
+                          ? null
+                          : Math.round(Number(event.target.value) * 100),
                       )
                     }
                   />

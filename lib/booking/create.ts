@@ -17,6 +17,7 @@ import {
   DEPOSIT_HOLD_MINUTES,
 } from "@/lib/payments/deposit";
 import { isStripeConfigured } from "@/lib/payments/stripe";
+import { getEffectivePriceCents } from "@/lib/utils";
 
 import { validateRequestedSlot } from "./slots";
 
@@ -89,9 +90,13 @@ export async function createBooking(
     );
   }
 
+  const effectivePriceCents = getEffectivePriceCents(
+    selected.priceCents,
+    selected.salePriceCents,
+  );
   const depositCents = settings.payments.enabled
     ? calculateDepositCents(
-        selected.priceCents,
+        effectivePriceCents,
         settings.payments.depositPercent,
       )
     : 0;
@@ -159,7 +164,7 @@ export async function createBooking(
         reference,
         serviceId: selected.id,
         serviceName: selected.name,
-        priceCents: selected.priceCents,
+        priceCents: effectivePriceCents,
         priceType: selected.priceType,
         durationMinutes: selected.durationMinutes,
         date: input.date,

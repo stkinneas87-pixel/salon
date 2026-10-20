@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   boolean,
   date,
@@ -70,6 +71,7 @@ export const services = pgTable(
     description: text("description").notNull(),
     inclusions: jsonb("inclusions").$type<string[]>().notNull().default([]),
     priceCents: integer("price_cents").notNull(),
+    salePriceCents: integer("sale_price_cents"),
     priceType: text("price_type").$type<"fixed" | "from">().notNull(),
     durationMinutes: integer("duration_minutes").notNull(),
     image: jsonb("image").$type<ImageRef | null>(),
@@ -86,6 +88,36 @@ export const services = pgTable(
   (table) => [
     index("services_active_sort_idx").on(table.active, table.sortOrder),
     index("services_category_idx").on(table.category),
+  ],
+);
+
+export const promotions = pgTable(
+  "promotions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    title: text("title").notNull(),
+    kicker: text("kicker").notNull().default(""),
+    description: text("description").notNull(),
+    images: jsonb("image").$type<ImageRef[]>().notNull().default([]),
+    serviceId: uuid("service_id")
+      .notNull()
+      .references(() => services.id, { onDelete: "cascade" }),
+    startDate: date("start_date", { mode: "string" })
+      .notNull()
+      .default(sql`current_date`),
+    endDate: date("end_date", { mode: "string" }),
+    unlimited: boolean("unlimited").notNull().default(true),
+    active: boolean("active").notNull().default(false),
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index("promotions_active_sort_idx").on(table.active, table.sortOrder),
   ],
 );
 

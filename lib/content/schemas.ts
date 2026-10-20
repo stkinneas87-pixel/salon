@@ -61,6 +61,7 @@ const ctaSchema = z.object({
 export const siteSettingsSchema = z.object({
   brand: z.object({
     name: z.string().min(1),
+    abn: z.string().trim().max(20),
     logo: imageRefSchema,
     wordmark: imageRefSchema,
   }),
@@ -355,14 +356,46 @@ export const serviceInputSchema = z.object({
   description: z.string().min(1).max(800),
   inclusions: z.array(z.string().min(1)).max(20),
   priceCents: z.number().int().min(0).max(100000),
+  salePriceCents: z.number().int().min(0).max(100000).nullable(),
   priceType: z.enum(["fixed", "from"]),
   durationMinutes: z.number().int().min(15).max(480),
   image: imageRefSchema.nullable(),
   active: z.boolean(),
   sortOrder: z.number().int().min(0).max(9999),
-});
+}).refine(
+  (data) =>
+    data.salePriceCents === null || data.salePriceCents < data.priceCents,
+  {
+    path: ["salePriceCents"],
+    message: "The discounted price must be lower than the normal price.",
+  },
+);
 
 export type ServiceInput = z.infer<typeof serviceInputSchema>;
+
+export const promotionInputSchema = z.object({
+  title: z.string().min(1).max(120),
+  kicker: z.string().max(80),
+  description: z.string().min(1).max(600),
+  images: z.array(imageRefSchema).min(1).max(8),
+  serviceId: z.string().uuid(),
+  startDate: dateString,
+  endDate: dateString.nullable(),
+  unlimited: z.boolean(),
+  active: z.boolean(),
+  sortOrder: z.number().int().min(0).max(9999),
+}).refine(
+  (data) => data.unlimited || data.endDate !== null,
+  { path: ["endDate"], message: "Choose an end date or enable unlimited." },
+).refine(
+  (data) =>
+    data.unlimited ||
+    data.endDate === null ||
+    data.endDate >= data.startDate,
+  { path: ["endDate"], message: "The end date must be on or after the start date." },
+);
+
+export type PromotionInput = z.infer<typeof promotionInputSchema>;
 
 export const bookingRequestSchema = z.object({
   serviceId: z.string().uuid(),

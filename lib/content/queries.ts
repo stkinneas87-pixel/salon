@@ -1,10 +1,18 @@
 import "server-only";
 
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, gte, lte, or } from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
 
 import { getDb } from "@/lib/db/client";
-import { pages, services, siteSettings, type ServiceRow } from "@/lib/db/schema";
+import {
+  pages,
+  promotions,
+  services,
+  siteSettings,
+  type ServiceRow,
+} from "@/lib/db/schema";
+
+import { getSydneyToday } from "@/lib/utils";
 
 import { defaultPages, defaultSettings } from "./defaults";
 import { mergeDefaults } from "./merge";
@@ -12,6 +20,7 @@ import {
   pageContentSchemas,
   pageSeoSchema,
   siteSettingsSchema,
+  type ImageRef,
   type PageContentMap,
   type PageSeo,
   type PageSlug,
@@ -27,12 +36,83 @@ export type PublicService = Pick<
   | "description"
   | "inclusions"
   | "priceCents"
+  | "salePriceCents"
   | "priceType"
   | "durationMinutes"
   | "image"
   | "sortOrder"
   | "isSample"
 >;
+
+export type PublicPromotion = {
+  id: string;
+  title: string;
+  kicker: string;
+  description: string;
+  images: ImageRef[];
+  serviceId: string;
+  serviceSlug: string;
+  serviceName: string;
+  serviceCategory: string;
+  priceCents: number;
+  salePriceCents: number | null;
+  priceType: "fixed" | "from";
+  durationMinutes: number;
+  startDate: string;
+  endDate: string | null;
+  unlimited: boolean;
+};
+
+export async function getActivePromotions(): Promise<PublicPromotion[]> {
+  "use cache";
+  cacheLife("minutes");
+  cacheTag("content");
+
+  const db = getDb();
+  if (!db) return [];
+  const today = getSydneyToday();
+
+  try {
+    return await db
+      .select({
+        id: promotions.id,
+        title: promotions.title,
+        kicker: promotions.kicker,
+        description: promotions.description,
+        images: promotions.images,
+        serviceId: services.id,
+        serviceSlug: services.slug,
+        serviceName: services.name,
+        serviceCategory: services.category,
+        priceCents: services.priceCents,
+        salePriceCents: services.salePriceCents,
+        priceType: services.priceType,
+        durationMinutes: services.durationMinutes,
+        startDate: promotions.startDate,
+        endDate: promotions.endDate,
+        unlimited: promotions.unlimited,
+      })
+      .from(promotions)
+      .innerJoin(services, eq(promotions.serviceId, services.id))
+      .where(
+        and(
+          eq(promotions.active, true),
+          eq(services.active, true),
+          eq(services.isSample, false),
+          lte(promotions.startDate, today),
+          or(
+            eq(promotions.unlimited, true),
+            gte(promotions.endDate, today),
+          ),
+        ),
+      )
+      .orderBy(asc(promotions.sortOrder), asc(promotions.title));
+  } catch (error) {
+    console.error("Unable to load promotions", error);
+    if (process.env.NODE_ENV === "production") throw error;
+    return [];
+  }
+}
 
 export async function getSettings(): Promise<SiteSettings> {
   "use cache";
@@ -129,6 +209,7 @@ export async function getPublicServices(): Promise<PublicService[]> {
       description: service.description,
       inclusions: service.inclusions,
       priceCents: service.priceCents,
+      salePriceCents: service.salePriceCents,
       priceType: service.priceType,
       durationMinutes: service.durationMinutes,
       image: service.image,

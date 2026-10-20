@@ -56,6 +56,7 @@ const salonDetail = (): ImageRef => ({
 export const defaultSettings: SiteSettings = {
   brand: {
     name: "Hair & Co",
+    abn: "",
     logo: {
       src: "/brand/hair-and-co-mark.png",
       alt: "Hair & Co",

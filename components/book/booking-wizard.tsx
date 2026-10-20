@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { PublicService } from "@/lib/content/queries";
+import { ServicePrice } from "@/components/site/service-price";
 import type { SiteSettings } from "@/lib/content/schemas";
 import {
   calculateBalanceCents,
@@ -19,6 +20,7 @@ import {
   formatPrice,
   formatTime,
   getDayHours,
+  getEffectivePriceCents,
   getSydneyToday,
   isDayClosed,
   timeToMinutes,
@@ -465,17 +467,17 @@ export function BookingWizard({
   const slots = availability?.slots ?? [];
   const morning = slots.filter((slot) => timeToMinutes(slot) < 12 * 60);
   const afternoon = slots.filter((slot) => timeToMinutes(slot) >= 12 * 60);
-  const selectedPrice = service
-    ? formatPrice(service.priceCents, service.priceType)
-    : "—";
+  const effectivePrice = service
+    ? getEffectivePriceCents(service.priceCents, service.salePriceCents)
+    : 0;
   const depositCents =
     service && settings.payments.enabled
-      ? calculateDepositCents(service.priceCents, settings.payments.depositPercent)
+      ? calculateDepositCents(effectivePrice, settings.payments.depositPercent)
       : 0;
   const balanceCents =
     service && settings.payments.enabled
-      ? calculateBalanceCents(service.priceCents, depositCents)
-      : service?.priceCents ?? 0;
+      ? calculateBalanceCents(effectivePrice, depositCents)
+      : effectivePrice;
 
   return (
     <div className="container-editorial py-12 lg:py-20">
@@ -551,7 +553,11 @@ export function BookingWizard({
                         </p>
                       </div>
                       <p className="self-center text-sm tabular-nums">
-                        {formatPrice(item.priceCents, item.priceType)}
+                        <ServicePrice
+                          priceCents={item.priceCents}
+                          salePriceCents={item.salePriceCents}
+                          priceType={item.priceType}
+                        />
                       </p>
                       <p className="hidden self-center text-sm text-muted sm:block">
                         {formatDuration(item.durationMinutes)}
@@ -833,6 +839,10 @@ export function BookingWizard({
                   {fieldErrors.email ? (
                     <span className="mt-1 block text-xs text-ink">{fieldErrors.email}</span>
                   ) : null}
+                  <span className="mt-1.5 block text-xs leading-relaxed text-muted">
+                    Use an email address you check. Your confirmation and tax
+                    invoice are sent here after payment.
+                  </span>
                 </label>
 
                 <label className="block">
@@ -927,7 +937,17 @@ export function BookingWizard({
               </div>
               <div className="flex items-center justify-between border-t border-line pt-4">
                 <span className="label text-muted">Service price</span>
-                <span className="tabular-nums">{selectedPrice}</span>
+                <span className="tabular-nums">
+                  {service ? (
+                    <ServicePrice
+                      priceCents={service.priceCents}
+                      salePriceCents={service.salePriceCents}
+                      priceType={service.priceType}
+                    />
+                  ) : (
+                    "—"
+                  )}
+                </span>
               </div>
               {settings.payments.enabled && service ? (
                 <>

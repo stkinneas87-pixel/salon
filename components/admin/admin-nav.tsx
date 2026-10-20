@@ -9,6 +9,7 @@ const primary = [
   { href: "/admin", label: "Dashboard" },
   { href: "/admin/bookings", label: "Bookings" },
   { href: "/admin/services", label: "Services" },
+  { href: "/admin/promotions", label: "Promotions" },
   { href: "/admin/availability", label: "Availability" },
 ];
 

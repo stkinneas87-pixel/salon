@@ -316,6 +316,12 @@ export const settingsFormSections: FormSection[] = [
     title: "Brand",
     fields: [
       { type: "text", name: "brand.name", label: "Business name" },
+      {
+        type: "text",
+        name: "brand.abn",
+        label: "ABN (optional)",
+        help: "Printed on the tax invoice PDF. Leave empty to hide it.",
+      },
       { type: "image", name: "brand.wordmark", label: "Wordmark" },
       { type: "image", name: "brand.logo", label: "Logo mark" },
     ],
@@ -424,6 +430,12 @@ export const serviceFields: FieldDef[] = [
   { type: "textarea", name: "description", label: "Description", rows: 3 },
   { type: "stringList", name: "inclusions", label: "What's included", itemLabel: "inclusion" },
   { type: "money", name: "priceCents", label: "Price (AUD)" },
+  {
+    type: "moneyOptional",
+    name: "salePriceCents",
+    label: "Discounted price (optional)",
+    help: "Leave blank for no discount. Must be lower than the normal price. This is used for booking deposits.",
+  },
   {
     type: "select",
     name: "priceType",

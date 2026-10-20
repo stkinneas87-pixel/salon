@@ -1,9 +1,15 @@
-import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
+import { put } from "@vercel/blob";
 import { NextResponse } from "next/server";
+import { randomUUID } from "node:crypto";
 
 import { assertAdmin } from "@/lib/auth/session";
 
-export async function POST(request: Request): Promise<NextResponse> {
+const MAX_BYTES = 4 * 1024 * 1024;
+const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+
+export async function POST(request: Request) {
+  await assertAdmin();
+
   if (!process.env.BLOB_READ_WRITE_TOKEN) {
     return NextResponse.json(
       {
@@ -15,27 +21,47 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   try {
-    const body = (await request.json()) as HandleUploadBody;
+    const form = await request.formData();
+    const file = form.get("file");
 
-    const result = await handleUpload({
-      body,
-      request,
-      onBeforeGenerateToken: async () => {
-        await assertAdmin();
-        return {
-          allowedContentTypes: ["image/jpeg", "image/png", "image/webp"],
-          maximumSizeInBytes: 8 * 1024 * 1024,
-          addRandomSuffix: true,
-          allowOverwrite: false,
-          cacheControlMaxAge: 60 * 60 * 24 * 365,
-        };
+    if (!(file instanceof File)) {
+      return NextResponse.json({ error: "No image was provided." }, { status: 400 });
+    }
+
+    if (!ALLOWED_TYPES.has(file.type)) {
+      return NextResponse.json(
+        { error: "Use a JPEG, PNG or WebP image." },
+        { status: 400 },
+      );
+    }
+
+    if (file.size > MAX_BYTES) {
+      return NextResponse.json(
+        { error: "The image is too large. Please use one under 4MB." },
+        { status: 400 },
+      );
+    }
+
+    const extension =
+      file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
+    const access =
+      process.env.BLOB_ACCESS === "public" ? "public" : "private";
+    const blob = await put(
+      `cms/${randomUUID()}.${extension}`,
+      file,
+      {
+        access,
+        addRandomSuffix: true,
+        contentType: file.type,
+        token: process.env.BLOB_READ_WRITE_TOKEN,
       },
-      onUploadCompleted: async () => {},
-    });
+    );
 
-    return NextResponse.json(result);
+    return NextResponse.json({
+      url: access === "public" ? blob.url : `/api/media/${blob.pathname}`,
+    });
   } catch (error) {
-    console.error("Upload token request failed", error);
+    console.error("Image upload failed", error);
     return NextResponse.json(
       {
         error:
